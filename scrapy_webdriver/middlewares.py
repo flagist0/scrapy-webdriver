@@ -1,5 +1,5 @@
-from scrapy.exceptions import IgnoreRequest, NotConfigured
-
+from scrapy.exceptions import IgnoreRequest, NotConfigured, DontCloseSpider
+from scrapy.signals import spider_idle
 from .http import WebdriverActionRequest, WebdriverRequest
 from .manager import WebdriverManager
 
@@ -8,6 +8,7 @@ class WebdriverSpiderMiddleware(object):
     """This middleware coordinates concurrent webdriver access attempts."""
     def __init__(self, crawler):
         self.manager = WebdriverManager(crawler)
+        crawler.signals.connect(self._next_request, signal=spider_idle)
 
     @classmethod
     def from_crawler(cls, crawler):
@@ -44,7 +45,7 @@ class WebdriverSpiderMiddleware(object):
             self.manager.release(response.request.url)
             next_request = self.manager.acquire_next()
             if next_request is not WebdriverRequest.WAITING:
-                yield next_request.replace(dont_filter=True)
+                yield next_request
 
     def _process_requests(self, items_or_requests, start=False):
         """Acquire the webdriver manager when it's available for requests."""
@@ -57,3 +58,11 @@ class WebdriverSpiderMiddleware(object):
                 if request is WebdriverRequest.WAITING:
                     continue  # Request has been enqueued, so drop it.
             yield request
+
+    def _next_request(self, spider):
+        '''If spider has no requests to process, try to queue request from manager\'s queue'''
+        self.manager.release('')
+        next_request = self.manager.acquire_next()
+        if next_request is not WebdriverRequest.WAITING:
+            spider.crawler.engine.crawl(next_request, spider)
+            raise DontCloseSpider()
