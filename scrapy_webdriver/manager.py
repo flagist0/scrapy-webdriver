@@ -2,6 +2,7 @@ import inspect
 from collections import deque
 from threading import Lock
 
+from scrapy import log
 from scrapy.signals import engine_stopped
 from scrapy_webdriver.http import WebdriverRequest, WebdriverActionRequest
 from selenium import webdriver
@@ -87,6 +88,7 @@ class WebdriverManager(object):
         options = self._options
         options[cap_attr] = self._desired_capabilities
 
+        options = self._extract_options_from_request(request, options) #Modify options if request contained supported headers
         self._webdriver = self._browser(**options)
 
         self.crawler.signals.connect(self._cleanup, signal=engine_stopped)
@@ -97,3 +99,23 @@ class WebdriverManager(object):
             self._webdriver.quit()
             assert len(self._wait_queue) + len(self._wait_inpage_queue) == 0, \
                 'Webdriver queue not empty at engine stop.'
+
+    def _extract_options_from_request(self, request, options):
+        'Extract browser options from request. Currently only Firefox and Accept-Language/User-Agent are supported'
+        if request:
+            if issubclass(self._browser, webdriver.Firefox):
+                profile = webdriver.FirefoxProfile()
+
+                if 'Accept-Language' in request.headers: #Set languages to accept from server
+                    languages = request.headers['Accept-Language']
+                    profile.set_preference('intl.accept_languages', languages)
+                    log.msg('Set accepted languages to "%s"', languages, level=log.DEBUG)
+
+                if 'User-Agent' in request.headers: #Set user agent
+                    ua = request.headers['User-Agent']
+                    profile.set_preference("general.useragent.override", ua)
+                    log.msg('Set user agent to "%s"', ua, level=log.DEBUG)
+
+                options['firefox_profile'] = profile
+
+        return options
