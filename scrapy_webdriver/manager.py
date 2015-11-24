@@ -39,19 +39,10 @@ class WebdriverManager(object):
             capabilities[self.USER_AGENT_KEY] = self._user_agent
         return capabilities or None
 
-    @property
-    def webdriver(self):
+    def webdriver(self, request=None):
         """Return the webdriver instance, instantiate it if necessary."""
         if self._webdriver is None:
-            short_arg_classes = (webdriver.Firefox, webdriver.Ie)
-            if issubclass(self._browser, short_arg_classes):
-                cap_attr = 'capabilities'
-            else:
-                cap_attr = 'desired_capabilities'
-            options = self._options
-            options[cap_attr] = self._desired_capabilities
-            self._webdriver = self._browser(**options)
-            self.crawler.signals.connect(self._cleanup, signal=engine_stopped)
+            self._init_webdriver(request)
         return self._webdriver
 
     def acquire(self, request):
@@ -83,9 +74,22 @@ class WebdriverManager(object):
                 return
         return self.acquire(request)
 
-    def release(self, msg):
+    def release(self):
         """Release the the webdriver instance's lock."""
         self._lock.release()
+
+    def _init_webdriver(self, request):
+        short_arg_classes = (webdriver.Firefox, webdriver.Ie)
+        if issubclass(self._browser, short_arg_classes):
+            cap_attr = 'capabilities'
+        else:
+            cap_attr = 'desired_capabilities'
+        options = self._options
+        options[cap_attr] = self._desired_capabilities
+
+        self._webdriver = self._browser(**options)
+
+        self.crawler.signals.connect(self._cleanup, signal=engine_stopped)
 
     def _cleanup(self):
         """Clean up when the scrapy engine stops."""

@@ -42,7 +42,7 @@ class WebdriverSpiderMiddleware(object):
             # That lock was kept for the entire duration of the response
             # parsing callback to keep the webdriver instance intact, and we
             # now release it.
-            self.manager.release(response.request.url)
+            self.manager.release()
             next_request = self.manager.acquire_next()
             if next_request is not WebdriverRequest.WAITING:
                 yield next_request
@@ -61,7 +61,7 @@ class WebdriverSpiderMiddleware(object):
 
     def _next_request(self, spider):
         '''If spider has no requests to process, try to queue request from manager\'s queue'''
-        self.manager.release('')
+        self.manager.release()
         next_request = self.manager.acquire_next()
         if next_request is not WebdriverRequest.WAITING:
             spider.crawler.engine.crawl(next_request, spider)
