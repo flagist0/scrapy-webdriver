@@ -20,6 +20,7 @@ class WebdriverManager(object):
         self._browser = crawler.settings.get('WEBDRIVER_BROWSER', None)
         self._user_agent = crawler.settings.get('USER_AGENT', None)
         self._options = crawler.settings.get('WEBDRIVER_OPTIONS', dict())
+        self._extensions = crawler.settings.get('WEBDRIVER_EXTENSIONS', [])
         self._webdriver = None
         if isinstance(self._browser, basestring):
             if '.' in self._browser:
@@ -93,6 +94,13 @@ class WebdriverManager(object):
 
         self.crawler.signals.connect(self._cleanup, signal=engine_stopped)
 
+    def _reinit_webdriver(self, request):
+        log.msg('Restarting webdriver', level=log.DEBUG)
+        print 'Restarting webdriver'
+        self._webdriver.quit()
+        self._init_webdriver(request)
+
+
     def _cleanup(self):
         """Clean up when the scrapy engine stops."""
         if self._webdriver is not None:
@@ -106,15 +114,18 @@ class WebdriverManager(object):
             if issubclass(self._browser, webdriver.Firefox):
                 profile = webdriver.FirefoxProfile()
 
+                for ext_path in self._extensions:
+                    profile.add_extension(ext_path)
+
                 if 'Accept-Language' in request.headers: #Set languages to accept from server
                     languages = request.headers['Accept-Language']
                     profile.set_preference('intl.accept_languages', languages)
-                    log.msg('Set accepted languages to "%s"', languages, level=log.DEBUG)
+                    log.msg('Set accepted languages to "%s"' % languages, level=log.DEBUG)
 
                 if 'User-Agent' in request.headers: #Set user agent
                     ua = request.headers['User-Agent']
                     profile.set_preference("general.useragent.override", ua)
-                    log.msg('Set user agent to "%s"', ua, level=log.DEBUG)
+                    log.msg('Set user agent to "%s"' % ua, level=log.DEBUG)
 
                 options['firefox_profile'] = profile
 

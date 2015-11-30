@@ -1,3 +1,4 @@
+import logging
 from scrapy import log, version_info
 from scrapy.utils.decorator import inthread
 from scrapy.utils.misc import load_object
@@ -12,6 +13,9 @@ else:
     FALLBACK_HANDLER = 'http10.HTTP10DownloadHandler'
 FALLBACK_HANDLER = 'scrapy.core.downloader.handlers.%s' % FALLBACK_HANDLER
 
+selenium_logger = logging.getLogger('selenium.webdriver.remote.remote_connection')
+# Only display possible problems
+selenium_logger.setLevel(logging.WARNING)
 
 class WebdriverDownloadHandler(object):
     """This download handler uses webdriver, deferred in a thread.
